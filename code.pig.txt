@@ -1,0 +1,56 @@
+REGISTER piggybank.jar;
+ATMS = LOAD '/user/cloudera/SberData/atm_list.csv' USING org.apache.pig.piggybank.storage.CSVExcelStorage(',', 'NO_MULTILINE', 'UNIX', 'SKIP_INPUT_HEADER')
+AS (
+-- номер строки по порядку
+strmun: int,
+-- идентификатор устройства
+atmnum: chararray,
+-- территориальный банк
+tb_name: chararray,
+-- наименование обслуживающего отделения
+obsotd_name: chararray,
+-- номер обслуживающего отделения
+obsotd_number: chararray,
+-- телефон подразделения
+obsotd_tel: chararray,
+-- регион 
+region: chararray,
+-- город
+city: chararray,
+-- адрес установки
+address: chararray,
+-- место установки
+place: chararray,
+-- принимает ли банковские карты 
+iscards: chararray,
+-- предназначен ли для платежей банковскими картами
+ispay: chararray,
+-- доступна ли самостоятельная инкассация
+isselfincass: chararray,
+-- принимает ли наличные 
+isgetcash: chararray,
+-- тип доступа
+access: chararray,
+-- тип устройства
+type: chararray);
+
+--total number of ATMs
+count_total = FOREACH (GROUP ATMS ALL) GENERATE COUNT(ATMS);
+--number of ATMs by department
+count_obsotd = FOREACH (GROUP ATMS by obsotd_number) GENERATE group AS otd_num, COUNT(ATMS) AS ATMcount;
+--ordered list
+top_obsotd = ORDER count_obsotd BY ATMcount DESC;
+--count by access types
+access_type = FOREACH (GROUP ATMS by access) GENERATE group AS access_type, COUNT(ATMS) AS ATMcount;
+--grouped data by tb,osb,type
+ATM_t = GROUP ATMS by (tb_name, obsotd_name, obsotd_number, access);
+grpd = FOREACH ATM_t GENERATE 
+        FLATTEN(group) AS (tb_name, obsotd_name, obsotd_number, access),
+        COUNT (ATMS) as ATMcount;
+
+
+STORE count_total into '/user/cloudera/SberData/count_total' USING PigStorage(',');--
+STORE count_obsotd into '/user/cloudera/SberData/count_obsotd' USING PigStorage(',');
+STORE top_obsotd into '/user/cloudera/SberData/top_obsotd' USING PigStorage(',');
+STORE access_type into '/user/cloudera/SberData/access_type' USING PigStorage(',');
+STORE grpd into '/user/cloudera/SberData/grpd' USING PigStorage(',');
